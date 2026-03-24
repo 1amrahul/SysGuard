@@ -1,34 +1,61 @@
 # SysGuard - System Monitor
+# https://github.com/yourusername/sysguard
 
 # ===========================================
-# Previous logs & Database (SQLite WAL/SHM)
+# Database (SQLite)
 # ===========================================
-# SQLite Write-Ahead Log (previous transaction logs)
+sysguard.db
 sysguard.db-wal
 sysguard.db-shm
 
-# Main database file
-sysguard.db
-
 # ===========================================
-# Python cache
+# Python
 # ===========================================
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
 
 # ===========================================
 # Configuration (user-specific)
 # ===========================================
 config.json
+*.local.json
 
 # ===========================================
-# OS artifacts
+# Logs
+# ===========================================
+*.log
+logs/
+
+# ===========================================
+# OS
 # ===========================================
 .DS_Store
 Thumbs.db
-*.log
+desktop.ini
 
 # ===========================================
 # IDE
@@ -37,3 +64,20 @@ Thumbs.db
 .vscode/
 *.swp
 *.swo
+*~
+.project
+.settings/
+.classpath
+
+# ===========================================
+# Testing
+# ===========================================
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# ===========================================
+# Build artifacts
+# ===========================================
+*.spec

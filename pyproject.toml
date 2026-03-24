@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sysguard"
+version = "1.0.0"
+description = "Silent system monitor for detecting screen capture and monitoring tools"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "SysGuard Team", email = "team@sysguard.dev"}
+]
+requires-python = ">=3.8"
+dependencies = [
+    "psutil>=5.9.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "black>=22.0.0",
+    "flake8>=4.0.0",
+]
+
+[project.scripts]
+sysguard = "launcher:main"
+sysguard-gui = "monitor_gui:main"
+
+[tool.black]
+line-length = 100
+target-version = ['py38', 'py39', 'py310', 'py311']
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
