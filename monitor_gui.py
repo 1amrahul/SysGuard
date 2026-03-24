@@ -1,9 +1,10 @@
 """
-monitor_gui.py — Optimized SysGuard GUI
+monitor_gui.py — Optimized SysGuard GUI (Cross-Platform)
 - All data from SQLite (db.py)
 - Engine runs in daemon thread (never blocks UI)
 - Silent logging - no popups or alert spam
 - Memory optimized with bounded table displays
+- Supports: Windows, macOS, Linux
 """
 import tkinter as tk
 from tkinter import ttk, messagebox
@@ -17,7 +18,7 @@ import subprocess
 import queue
 
 import db
-from engine import MonitorEngine
+from engine import MonitorEngine, IS_WINDOWS, IS_MACOS, IS_LINUX, SYSTEM
 
 # ── Config ────────────────────────────────────────────────────────────────────
 CONFIG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.json")

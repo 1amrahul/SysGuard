@@ -1,9 +1,10 @@
 """
-engine.py — Optimized SysGuard Monitor
+engine.py — Optimized SysGuard Monitor (Cross-Platform)
 - Non-blocking background monitor
 - Silent logging to SQLite only (no alerts/notifications)
 - Crash handling with graceful degradation
 - Memory optimized with bounded caches and periodic cleanup
+- Supports: Windows, macOS, Linux
 """
 import threading
 import time
@@ -12,9 +13,33 @@ import platform
 import hashlib
 import subprocess
 import logging
+import sys
 from collections import OrderedDict
 from functools import lru_cache
 from concurrent.futures import ThreadPoolExecutor, as_completed
+
+# Platform detection
+SYSTEM = platform.system()
+IS_WINDOWS = SYSTEM == "Windows"
+IS_MACOS = SYSTEM == "Darwin"
+IS_LINUX = SYSTEM == "Linux"
+
+# Cross-platform paths
+def get_temp_dirs():
+    """Get platform-appropriate temp directories."""
+    dirs = []
+    if IS_WINDOWS:
+        for var in ["TEMP", "TMP", "LOCALAPPDATA"]:
+            val = os.environ.get(var)
+            if val:
+                dirs.append(val)
+    else:
+        dirs.extend(["/tmp", "/var/tmp", "/var/folders"])
+    # Add user home temp
+    dirs.append(os.path.expanduser("~/tmp"))
+    return [d for d in dirs if os.path.isdir(d)] or ["/tmp"]
+
+TEMP_DIRS = get_temp_dirs()
 
 try:
     import psutil
@@ -23,12 +48,60 @@ except ImportError:
     PSUTIL_OK = False
 
 # Setup logging
+log_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sysguard.log")
 logging.basicConfig(
-    filename='sysguard.log',
+    filename=log_file,
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+# Cross-platform safe processes (system processes to skip)
+SAFE_PROCESSES_WINDOWS = {
+    "system", "idle", "dwm.exe", "csrss.exe", "smss.exe", 
+    "lsass.exe", "services.exe", "wininit.exe", "winlogon.exe",
+    "explorer.exe", "taskhostw.exe", "runtimebroker.exe",
+    "searchui.exe", "searchindexer.exe", "sihost.exe",
+}
+SAFE_PROCESSES_MACOS = {
+    "kernel_task", "launchd", "windowserver", "loginwindow",
+    "coreaudiod", "coreservicesd", "configd", "airportd",
+}
+SAFE_PROCESSES_LINUX = {
+    "systemd", "init", "kthreadd", "ksoftirqd", "kworker",
+    "Xorg", "gnome-shell", "gdm", "dbus-daemon",
+}
+
+def get_safe_processes():
+    if IS_WINDOWS:
+        return SAFE_PROCESSES_WINDOWS
+    elif IS_MACOS:
+        return SAFE_PROCESSES_MACOS
+    else:
+        return SAFE_PROCESSES_LINUX
+
+SAFE_PROCESSES = get_safe_processes()
+
+# Cross-platform suspicious ports
+SUSPICIOUS_PORTS = frozenset({4444, 5555, 6666, 1337, 9999, 31337, 5900, 5800})
+
+# Platform-specific screen DLLs
+SCREEN_DLLS = frozenset([
+    "dxgi.dll", "d3d11.dll", "gdi32.dll", "opengl32.dll",
+    "nvfbc.dll", "d3d9.dll", "d3d12.dll",
+]) if IS_WINDOWS else frozenset([
+    # macOS frameworks
+    "CoreGraphics.framework", "Quartz.framework", "AppKit.framework",
+    # Linux libs
+    "libX11.so", "libXext.so", "libxrender.so", "libgl.so",
+])
+
+# Cross-platform suspicious paths
+SUSPICIOUS_PATHS = frozenset([
+    "appdata\\local\\temp", "appdata\\roaming\\temp",
+    "\\temp\\", "\\tmp\\", "/tmp/", "/var/tmp/",
+    "/private/tmp/", "~/tmp/", "~\\AppData\\Local\\Temp",
+])
 
 # ── Screen-capture fingerprints ───────────────────────────────────────────────
 SCREEN_PROC_KEYWORDS = frozenset([
@@ -60,16 +133,47 @@ SUSPICIOUS_PATHS = frozenset([
 SUSPICIOUS_PORTS = frozenset({4444, 5555, 6666, 1337, 9999, 31337, 5900, 5800})
 
 # ── Parent chain: apps that should NOT be spawning random child EXEs ──────────
-SUSPICIOUS_PARENTS = frozenset({
+# Windows
+SUSPICIOUS_PARENTS_WINDOWS = frozenset({
     "chrome.exe", "firefox.exe", "msedge.exe", "opera.exe", "brave.exe",
-    "iexplore.exe", "safari",
+    "iexplore.exe", "safari.exe",
     "winword.exe", "excel.exe", "powerpnt.exe", "outlook.exe", "onenote.exe",
     "acrord32.exe",
     "slack.exe", "teams.exe", "zoom.exe", "discord.exe", "telegram.exe",
     "whatsapp.exe", "skype.exe",
     "vlc.exe", "wmplayer.exe", "spotify.exe",
 })
-SAFE_CHILDREN = frozenset({"conhost.exe", "werfault.exe", "dwm.exe"})
+# macOS
+SUSPICIOUS_PARENTS_MACOS = frozenset({
+    "Safari", "Google Chrome", "Firefox", "Microsoft Edge", "Opera",
+    "Notes", "Mail", "Microsoft Word", "Microsoft Excel", "Microsoft PowerPoint",
+    "Slack", "Teams", "Zoom", "Discord", "Telegram",
+    "VLC", "Spotify",
+})
+# Linux
+SUSPICIOUS_PARENTS_LINUX = frozenset({
+    "firefox", "chrome", "chromium", "brave", "opera",
+    "libreoffice", "evolution", "thunderbird",
+    "slack", "teams", "zoom", "discord", "telegram",
+    "vlc", "rhythmbox", "spotify",
+})
+
+def get_suspicious_parents():
+    if IS_WINDOWS:
+        return SUSPICIOUS_PARENTS_WINDOWS
+    elif IS_MACOS:
+        return SUSPICIOUS_PARENTS_MACOS
+    else:
+        return SUSPICIOUS_PARENTS_LINUX
+
+SUSPICIOUS_PARENTS = get_suspicious_parents()
+
+# Platform-safe children
+SAFE_CHILDREN = frozenset({
+    "conhost.exe", "werfault.exe", "dwm.exe",  # Windows
+    "CoreFoundation", "launchd", "cfprefsd",   # macOS
+    "systemd", "dbus-daemon", "gmain",         # Linux
+})
 
 # ── Thresholds ────────────────────────────────────────────────────────────────
 NET_SPIKE_MB = 5
