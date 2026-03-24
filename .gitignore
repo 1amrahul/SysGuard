@@ -1,0 +1,39 @@
+# SysGuard - System Monitor
+
+# ===========================================
+# Previous logs & Database (SQLite WAL/SHM)
+# ===========================================
+# SQLite Write-Ahead Log (previous transaction logs)
+sysguard.db-wal
+sysguard.db-shm
+
+# Main database file
+sysguard.db
+
+# ===========================================
+# Python cache
+# ===========================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# ===========================================
+# Configuration (user-specific)
+# ===========================================
+config.json
+
+# ===========================================
+# OS artifacts
+# ===========================================
+.DS_Store
+Thumbs.db
+*.log
+
+# ===========================================
+# IDE
+# ===========================================
+.idea/
+.vscode/
+*.swp
+*.swo
